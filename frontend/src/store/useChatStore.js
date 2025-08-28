@@ -12,6 +12,7 @@ export const useChatStore = create((set, get) => ({
   isUsersLoading: false,
   isMessagesLoading: false,
   isGroupsLoading: false,
+  unreadCounts: {},
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -22,6 +23,15 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response?.data?.message || "Failed to fetch users");
     } finally {
       set({ isUsersLoading: false });
+    }
+  },
+
+  getUnreadCounts: async () => {
+    try {
+      const res = await axiosInstance.get("/messages/unread");
+      set({ unreadCounts: res.data });
+    } catch (error) {
+      console.error("Failed to fetch unread counts:", error);
     }
   },
 
@@ -88,6 +98,9 @@ export const useChatStore = create((set, get) => ({
     const { selectedUser, selectedGroup } = get();
     socket.off("newMessage");
     socket.off("newGroupMessage");
+    socket.off("messageDeleted");
+    socket.off("unreadCountsUpdate");
+    
     if (selectedGroup) {
       socket.on("newGroupMessage", (newMessage) => {
         if (newMessage.groupId !== selectedGroup._id) return;
@@ -99,6 +112,17 @@ export const useChatStore = create((set, get) => ({
         set({ messages: [...get().messages, newMessage] });
       });
     }
+    
+    // Listen for message deletion
+    socket.on("messageDeleted", ({ messageId }) => {
+      set({ messages: get().messages.filter(msg => msg._id !== messageId) });
+    });
+
+    // Listen for unread counts update
+    socket.on("unreadCountsUpdate", (unreadCounts) => {
+      console.log("📬 ChatStore received unread counts:", unreadCounts);
+      set({ unreadCounts });
+    });
   },
 
   notListenMessages: () => {
@@ -106,6 +130,8 @@ export const useChatStore = create((set, get) => ({
     if (!socket) return;
     socket.off("newMessage");
     socket.off("newGroupMessage");
+    socket.off("messageDeleted");
+    socket.off("unreadCountsUpdate");
   },
 
   listenOnlineUsers: () => {
@@ -186,5 +212,41 @@ export const useChatStore = create((set, get) => ({
     } catch (error) {
       toast.error(error.response?.data?.message || "Cập nhật ảnh nhóm thất bại");
     }
+  },
+
+  kickMember: async (groupId, memberId) => {
+    try {
+      await axiosInstance.delete(`/groups/${groupId}/members/${memberId}`);
+      // Refresh group details
+      get().getGroups();
+      toast.success("Đã loại thành viên khỏi nhóm");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Không thể loại thành viên");
+    }
+  },
+
+  deleteMessage: async (messageId) => {
+    try {
+      await axiosInstance.delete(`/messages/${messageId}`);
+      // Remove message from local state
+      set({ messages: get().messages.filter(msg => msg._id !== messageId) });
+      toast.success("Đã xóa tin nhắn");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Không thể xóa tin nhắn");
+    }
+  },
+
+  // Clear unread counts when selecting a user
+  clearUnreadCount: (userId) => {
+    const { unreadCounts } = get();
+    const newUnreadCounts = { ...unreadCounts };
+    delete newUnreadCounts[userId];
+    set({ unreadCounts: newUnreadCounts });
+    console.log("🧹 Cleared unread count for user:", userId, "new counts:", newUnreadCounts);
+  },
+
+  // Set unread counts (for socket updates)
+  setUnreadCounts: (unreadCounts) => {
+    set({ unreadCounts });
   },
 }));

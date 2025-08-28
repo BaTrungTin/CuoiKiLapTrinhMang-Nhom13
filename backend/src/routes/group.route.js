@@ -9,6 +9,7 @@ import {
   getGroupMessages,
   sendGroupMessage,
   updateGroupAvatar,
+  kickMember,
 } from "../controllers/group.controller.js";
 
 const router = express.Router();
@@ -21,6 +22,7 @@ router.get("/:groupId", protectRoute, getGroupDetails);
 router.get("/:groupId/messages", protectRoute, getGroupMessages);
 router.post("/:groupId/messages", protectRoute, sendGroupMessage);
 router.post("/:groupId/avatar", protectRoute, updateGroupAvatar);
+router.delete("/:groupId/members/:memberId", protectRoute, kickMember);
 
 export default router;
 

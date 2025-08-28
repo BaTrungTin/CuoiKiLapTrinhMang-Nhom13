@@ -7,15 +7,34 @@ import { useState } from "react";
 import GroupCreateModal from "./GroupCreateModal";
 
 const Sidebar = () => {
-  const { getUsers, getGroups, users, groups, selectedUser, selectedGroup, setSelectedUser, setSelectedGroup, isUsersLoading, isGroupsLoading } =
-    useChatStore();
+  const { 
+    getUsers, 
+    getGroups, 
+    getUnreadCounts,
+    users, 
+    groups, 
+    selectedUser, 
+    selectedGroup, 
+    setSelectedUser, 
+    setSelectedGroup, 
+    isUsersLoading, 
+    isGroupsLoading,
+    unreadCounts,
+    clearUnreadCount
+  } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [openModal, setOpenModal] = useState(false);
 
   useEffect(() => {
     getUsers();
     getGroups();
-  }, [getUsers, getGroups]);
+    getUnreadCounts();
+  }, []); // Remove dependencies to avoid infinite re-renders
+
+  // Debug unread counts changes
+  useEffect(() => {
+    console.log("🔄 Sidebar unread counts changed:", unreadCounts);
+  }, [unreadCounts]);
 
   if ((isUsersLoading || isGroupsLoading) && !openModal) return <SidebarSkeleton />;
 
@@ -74,11 +93,19 @@ const Sidebar = () => {
         {users.length > 0 ? (
           users.map((user) => {
             const isOnline = onlineUsers.includes(user._id);
+            const unreadCount = unreadCounts[user._id] || 0;
+            const hasUnread = unreadCount > 0;
+            console.log(`User ${user.fullName} (${user._id}) online status:`, isOnline, "unread:", unreadCount, "all unread counts:", unreadCounts);
 
             return (
               <button
                 key={user._id}
-                onClick={() => setSelectedUser(user)}
+                onClick={() => {
+                  setSelectedUser(user);
+                  if (hasUnread) {
+                    clearUnreadCount(user._id);
+                  }
+                }}
                 className={`w-full p-3 flex items-center gap-3 hover:bg-base-300 transition-colors ${
                   selectedUser?._id === user._id
                     ? "bg-base-300 ring-1 ring-base-300"
@@ -95,11 +122,26 @@ const Sidebar = () => {
                   {isOnline && (
                     <span className="absolute bottom-0 right-0 block w-3 h-3 rounded-full bg-green-500 ring-2 ring-white"></span>
                   )}
+                  {/* Unread count badge for mobile */}
+                  {hasUnread && (
+                    <span className="absolute -top-1 -right-1 block w-5 h-5 rounded-full bg-primary text-primary-content text-xs font-medium flex items-center justify-center">
+                      {unreadCount > 5 ? '5+' : unreadCount}
+                    </span>
+                  )}
                 </div>
 
-                <div className="hidden lg:block text-left min-w-0">
-                  <div className="font-medium truncate">{user.fullName}</div>
+                <div className="hidden lg:block text-left min-w-0 flex-1">
+                  <div className={`font-medium truncate ${hasUnread ? 'font-bold' : ''}`}>
+                    {user.fullName}
+                  </div>
                 </div>
+                
+                {/* Unread count badge */}
+                {hasUnread && (
+                  <div className="hidden lg:flex items-center justify-center min-w-[20px] h-5 px-1 bg-primary text-primary-content text-xs font-medium rounded-full">
+                    {unreadCount > 5 ? '5+' : unreadCount}
+                  </div>
+                )}
               </button>
             );
           })

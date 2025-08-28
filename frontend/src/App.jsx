@@ -5,7 +5,8 @@ import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
-import SettingsPage from "./pages/SettingsPage"; // 👈 thêm dòng này
+import SettingsPage from "./pages/SettingsPage";
+import VideoCallModal from "./components/VideoCallModal";
 import { axiosInstance } from "./lib/axios";
 import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
@@ -54,6 +55,7 @@ const App = () => {
         />
       </Routes>
 
+      <VideoCallModal />
       <Toaster />
     </div>
   );

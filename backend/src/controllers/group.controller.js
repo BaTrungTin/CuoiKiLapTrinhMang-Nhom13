@@ -1,5 +1,6 @@
 import Group from "../models/group.model.js";
 import Message from "../models/message.model.js";
+import User from "../models/user.model.js";
 import { io } from "../lib/socket.js";
 import cloudinary from "../lib/cloudinary.js";
 
@@ -54,6 +55,7 @@ export const leaveGroup = async (req, res) => {
     const group = await Group.findById(groupId);
     if (!group) return res.status(404).json({ error: "Group not found" });
 
+    const isCreator = group.createdBy.toString() === userId;
     group.members = group.members.filter((m) => m.toString() !== userId);
 
     // If creator leaves and no members left, delete group
@@ -64,16 +66,27 @@ export const leaveGroup = async (req, res) => {
       return res.status(200).json({ message: "Group deleted" });
     }
 
-    await group.save();
+    // If creator leaves but there are still members, transfer ownership to first member
+    if (isCreator && group.members.length > 0) {
+      group.createdBy = group.members[0];
+      const newCreator = await User.findById(group.members[0]);
+      const systemMessage = await Message.create({
+        senderId: req.user._id,
+        groupId,
+        text: `👑 ${req.user.fullName || "Quản trị viên"} đã rời nhóm. ${newCreator?.fullName || "Một thành viên"} trở thành quản trị viên mới.`,
+      });
+      io.to(`group:${groupId}`).emit("newGroupMessage", systemMessage);
+    } else {
+      // Create a system message indicating user left
+      const systemMessage = await Message.create({
+        senderId: req.user._id,
+        groupId,
+        text: `👋 ${req.user.fullName || "Một thành viên"} đã rời nhóm`,
+      });
+      io.to(`group:${groupId}`).emit("newGroupMessage", systemMessage);
+    }
 
-    // Create a system message indicating user left
-    const systemMessage = await Message.create({
-      senderId: req.user._id,
-      groupId,
-      text: `👋 ${req.user.fullName || "Một thành viên"} đã rời nhóm`,
-    });
-    // Emit to group room
-    io.to(`group:${groupId}`).emit("newGroupMessage", systemMessage);
+    await group.save();
 
     res.status(200).json({ message: "Left group" });
   } catch (error) {
@@ -173,6 +186,51 @@ export const updateGroupAvatar = async (req, res) => {
 
     io.to(`group:${groupId}`).emit("groupUpdated", { _id: groupId, avatar: group.avatar });
     res.status(200).json(group);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const kickMember = async (req, res) => {
+  try {
+    const { groupId, memberId } = req.params;
+    const userId = req.user._id.toString();
+
+    const group = await Group.findById(groupId);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    // Chỉ người tạo nhóm mới có quyền kick
+    if (group.createdBy.toString() !== userId) {
+      return res.status(403).json({ error: "Only group creator can kick members" });
+    }
+
+    // Không thể kick chính mình
+    if (memberId === userId) {
+      return res.status(400).json({ error: "Cannot kick yourself" });
+    }
+
+    // Kiểm tra member có trong nhóm không
+    if (!group.members.map(String).includes(memberId)) {
+      return res.status(404).json({ error: "Member not found in group" });
+    }
+
+    // Xóa member khỏi nhóm
+    group.members = group.members.filter(m => m.toString() !== memberId);
+    await group.save();
+
+    // Tạo system message
+    const kickedUser = await User.findById(memberId);
+    const systemMessage = await Message.create({
+      senderId: req.user._id,
+      groupId,
+      text: `👢 ${kickedUser?.fullName || "Một thành viên"} đã bị loại khỏi nhóm bởi ${req.user.fullName}`,
+    });
+
+    // Emit events
+    io.to(`group:${groupId}`).emit("newGroupMessage", systemMessage);
+    io.to(`group:${groupId}`).emit("memberKicked", { groupId, memberId });
+
+    res.status(200).json({ message: "Member kicked successfully" });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }

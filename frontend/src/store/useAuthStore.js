@@ -104,6 +104,30 @@ export const useAuthStore = create((set, get) => ({
         set({ onlineUsers: userIds });
       });
 
+      // Listen for real-time online status updates
+      newSocket.on("userOnline", (userId) => {
+        console.log("👤 User went online:", userId);
+        const { onlineUsers } = get();
+        if (!onlineUsers.includes(userId)) {
+          set({ onlineUsers: [...onlineUsers, userId] });
+        }
+      });
+
+      newSocket.on("userOffline", (userId) => {
+        console.log("👤 User went offline:", userId);
+        const { onlineUsers } = get();
+        set({ onlineUsers: onlineUsers.filter(id => id !== userId) });
+      });
+
+      // Listen for unread counts updates
+      newSocket.on("unreadCountsUpdate", (unreadCounts) => {
+        console.log("📬 Unread counts updated:", unreadCounts);
+        // Update unread counts in chat store
+        import("./useChatStore").then(({ useChatStore }) => {
+          useChatStore.getState().setUnreadCounts(unreadCounts);
+        });
+      });
+
       set({ socket: newSocket });
     }
   },
@@ -112,6 +136,10 @@ export const useAuthStore = create((set, get) => ({
   disconnectSocket: () => {
     const { socket } = get();
     if (socket && socket.connected) {
+      socket.off("getOnlineUsers");
+      socket.off("userOnline");
+      socket.off("userOffline");
+      socket.off("unreadCountsUpdate");
       socket.disconnect();
       set({ socket: null, onlineUsers: [] });
     }

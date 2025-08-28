@@ -33,6 +33,42 @@ export const getMessages = async (req, res) => {
       ],
     }).sort({ createdAt: 1 });
 
+    // Đánh dấu tin nhắn từ userToChatId là đã đọc
+    const updateResult = await Message.updateMany(
+      { senderId: userToChatId, receiverId: myId, isRead: false },
+      { isRead: true }
+    );
+
+    console.log("📖 Marked messages as read:", updateResult.modifiedCount, "messages");
+
+    // Emit updated unread counts
+    const unreadCounts = await Message.aggregate([
+      {
+        $match: {
+          receiverId: myId,
+          isRead: false,
+          groupId: { $exists: false }
+        }
+      },
+      {
+        $group: {
+          _id: "$senderId",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const unreadMap = {};
+    unreadCounts.forEach(item => {
+      unreadMap[item._id.toString()] = item.count;
+    });
+
+    const receiverSocketId = getReceiverSocketId(myId);
+    if (receiverSocketId) {
+      console.log("📬 Emitting updated unread counts after marking as read:", unreadMap);
+      io.to(receiverSocketId).emit("unreadCountsUpdate", unreadMap);
+    }
+
     res.status(200).json(messages);
   } catch (error) {
     console.error("Error in getMessages:", error.message);
@@ -96,12 +132,109 @@ export const sendMessage = async (req, res) => {
       const receiverSocketId = getReceiverSocketId(receiverId);
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("newMessage", newMessage);
+        
+        // Emit unread counts update
+        const unreadCounts = await Message.aggregate([
+          {
+            $match: {
+              receiverId: receiverId,
+              isRead: false,
+              groupId: { $exists: false }
+            }
+          },
+          {
+            $group: {
+              _id: "$senderId",
+              count: { $sum: 1 }
+            }
+          }
+        ]);
+        
+        const unreadMap = {};
+        unreadCounts.forEach(item => {
+          unreadMap[item._id.toString()] = item.count;
+        });
+        
+        console.log("📬 Emitting unread counts to", receiverId, ":", unreadMap);
+        io.to(receiverSocketId).emit("unreadCountsUpdate", unreadMap);
       }
     }
 
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Error in sendMessage:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Xóa tin nhắn
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Tin nhắn không tồn tại" });
+    }
+
+    // Chỉ người gửi mới có thể xóa tin nhắn
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Bạn không có quyền xóa tin nhắn này" });
+    }
+
+    // Xóa tin nhắn
+    await Message.findByIdAndDelete(messageId);
+
+    // Emit event để thông báo xóa tin nhắn
+    if (message.groupId) {
+      io.to(`group:${message.groupId}`).emit("messageDeleted", { messageId });
+    } else {
+      const receiverSocketId = getReceiverSocketId(message.receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("messageDeleted", { messageId });
+      }
+    }
+
+    res.status(200).json({ message: "Tin nhắn đã được xóa" });
+  } catch (error) {
+    console.error("Error in deleteMessage:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Lấy số tin nhắn chưa đọc cho mỗi user
+export const getUnreadCounts = async (req, res) => {
+  try {
+    const myId = req.user._id;
+
+    // Lấy số tin nhắn chưa đọc từ mỗi user
+    const unreadCounts = await Message.aggregate([
+      {
+        $match: {
+          receiverId: myId,
+          isRead: false,
+          groupId: { $exists: false }
+        }
+      },
+      {
+        $group: {
+          _id: "$senderId",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Chuyển đổi thành object với key là userId
+    const unreadMap = {};
+    unreadCounts.forEach(item => {
+      unreadMap[item._id.toString()] = item.count;
+    });
+
+    res.status(200).json(unreadMap);
+  } catch (error) {
+    console.error("Error in getUnreadCounts:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
