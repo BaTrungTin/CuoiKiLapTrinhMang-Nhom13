@@ -44,18 +44,22 @@ export const useVideoCallStore = create((set, get) => ({
         },
       });
       
+      console.log("Media stream obtained successfully:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
+      
       set({ 
         localStream: stream,
         callStatus: "ringing",
         currentCall: { receiverId, callType: "video", isCaller: true }
       });
       
+      console.log("Emitting initiateCall with:", { receiverId, callType: "video" });
       socket.emit("initiateCall", { receiverId, callType: "video" });
       
       // Set timeout for call
       const timeout = setTimeout(() => {
         const { callStatus } = get();
         if (callStatus === "ringing") {
+          console.log("Call timeout - ending call");
           get().endCall();
           toast.error("Call timeout - no answer");
         }
@@ -66,7 +70,13 @@ export const useVideoCallStore = create((set, get) => ({
       return true;
     } catch (error) {
       console.error("Error initiating call:", error);
-      toast.error("Failed to access camera/microphone");
+      if (error.name === 'NotAllowedError') {
+        toast.error("Please allow camera and microphone access");
+      } else if (error.name === 'NotFoundError') {
+        toast.error("Camera or microphone not found");
+      } else {
+        toast.error("Failed to access camera/microphone: " + error.message);
+      }
       return false;
     }
   },

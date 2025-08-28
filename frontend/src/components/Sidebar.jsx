@@ -92,10 +92,15 @@ const Sidebar = () => {
       <div className="overflow-y-auto w-full py-3">
         {users.length > 0 ? (
           users.map((user) => {
-            const isOnline = onlineUsers.includes(user._id);
+            // Debug online users array
+            console.log("Online users array:", onlineUsers);
+            console.log("Current user ID:", user._id);
+            console.log("User ID type:", typeof user._id);
+            
+            const isOnline = onlineUsers.includes(user._id.toString());
             const unreadCount = unreadCounts[user._id] || 0;
             const hasUnread = unreadCount > 0;
-            console.log(`User ${user.fullName} (${user._id}) online status:`, isOnline, "unread:", unreadCount, "all unread counts:", unreadCounts);
+            console.log(`User ${user.fullName} (${user._id}) online status:`, isOnline, "unread:", unreadCount);
 
             return (
               <button
