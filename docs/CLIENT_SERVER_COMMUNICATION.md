@@ -801,3 +801,4 @@ if (!user) {
 ---
 
 *Tài liệu này mô tả chi tiết cách client và server giao tiếp trong dự án Chat Ting Ting.*
+

@@ -227,7 +227,10 @@ export const useVideoCallStore = create((set, get) => ({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
-        // Thêm TURN server cho localhost testing
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+        // TURN servers cho production
         {
           urls: "turn:openrelay.metered.ca:80",
           username: "openrelayproject",
@@ -236,6 +239,11 @@ export const useVideoCallStore = create((set, get) => ({
         {
           urls: "turn:openrelay.metered.ca:443",
           username: "openrelayproject", 
+          credential: "openrelayproject"
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443?transport=tcp",
+          username: "openrelayproject",
           credential: "openrelayproject"
         }
       ]
