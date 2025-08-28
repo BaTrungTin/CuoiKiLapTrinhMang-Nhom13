@@ -25,7 +25,7 @@ export const useVideoCallStore = create((set, get) => ({
   callDuration: 0, // Thêm call duration timer
   
   // Initialize call
-  initiateCall: async (receiverId, callType = "voice") => {
+  initiateCall: async (receiverId) => {
     const { socket } = useAuthStore.getState();
     if (!socket) {
       toast.error("Socket not connected");
@@ -33,9 +33,9 @@ export const useVideoCallStore = create((set, get) => ({
     }
     
     try {
-      // Get user media based on call type
+      // Get user media for video call
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: callType === "video",
+        video: true,
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -47,10 +47,10 @@ export const useVideoCallStore = create((set, get) => ({
       set({ 
         localStream: stream,
         callStatus: "ringing",
-        currentCall: { receiverId, callType, isCaller: true }
+        currentCall: { receiverId, callType: "video", isCaller: true }
       });
       
-      socket.emit("initiateCall", { receiverId, callType });
+      socket.emit("initiateCall", { receiverId, callType: "video" });
       
       // Set timeout for call
       const timeout = setTimeout(() => {
@@ -143,9 +143,9 @@ export const useVideoCallStore = create((set, get) => ({
     }
     
     try {
-      // Get user media based on call type
+      // Get user media for video call
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: incomingCallData.callType === "video",
+        video: true,
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -450,27 +450,52 @@ export const useVideoCallStore = create((set, get) => ({
   
   // Toggle video
   toggleVideo: () => {
-    const { localStream, isVideoEnabled } = get();
+    const { localStream, isVideoEnabled, peerConnection } = get();
     
     if (localStream) {
       const videoTrack = localStream.getVideoTracks()[0];
       if (videoTrack) {
-        videoTrack.enabled = !isVideoEnabled;
-        set({ isVideoEnabled: !isVideoEnabled });
+        const newVideoState = !isVideoEnabled;
+        videoTrack.enabled = newVideoState;
+        set({ isVideoEnabled: newVideoState });
+        
+        // Update peer connection if available
+        if (peerConnection) {
+          const sender = peerConnection.getSenders().find(s => 
+            s.track && s.track.kind === "video"
+          );
+          if (sender && sender.track) {
+            sender.track.enabled = newVideoState;
+          }
+        }
+        
+        console.log("Video toggled:", newVideoState);
       }
     }
   },
   
   // Toggle audio
   toggleAudio: () => {
-    const { localStream, isAudioEnabled } = get();
+    const { localStream, isAudioEnabled, peerConnection } = get();
     
     if (localStream) {
       const audioTrack = localStream.getAudioTracks()[0];
       if (audioTrack) {
-        audioTrack.enabled = !isAudioEnabled;
-        set({ isAudioEnabled: !isAudioEnabled });
-        console.log("Audio toggled:", !isAudioEnabled);
+        const newAudioState = !isAudioEnabled;
+        audioTrack.enabled = newAudioState;
+        set({ isAudioEnabled: newAudioState });
+        
+        // Update peer connection if available
+        if (peerConnection) {
+          const sender = peerConnection.getSenders().find(s => 
+            s.track && s.track.kind === "audio"
+          );
+          if (sender && sender.track) {
+            sender.track.enabled = newAudioState;
+          }
+        }
+        
+        console.log("Audio toggled:", newAudioState);
       }
     }
   },
@@ -495,6 +520,21 @@ export const useVideoCallStore = create((set, get) => ({
         if (sender) {
           sender.replaceTrack(videoTrack);
           set({ isScreenSharing: true });
+          
+          // Handle screen share stop
+          videoTrack.onended = () => {
+            const { localStream, peerConnection } = get();
+            if (localStream) {
+              const cameraTrack = localStream.getVideoTracks()[0];
+              const sender = peerConnection.getSenders().find(s => 
+                s.track && s.track.kind === "video"
+              );
+              if (sender && cameraTrack) {
+                sender.replaceTrack(cameraTrack);
+                set({ isScreenSharing: false });
+              }
+            }
+          };
         }
       } else {
         // Stop screen sharing and restore camera

@@ -226,7 +226,7 @@ const VideoCallModal = () => {
             </div>
                          <h3 className="text-lg font-semibold mb-2">Incoming Call</h3>
              <p className="text-base-content/70 mb-6">
-               {incomingCallData?.callType === "video" ? "Video Call (Audio + Video)" : "Voice Call (Audio Only)"}
+               Video Call (Audio + Video)
              </p>
              <p className="text-sm text-base-content/50 mb-4">
                Call will auto-reject in 45 seconds
@@ -257,72 +257,31 @@ const VideoCallModal = () => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
         <div className="relative w-full h-full max-w-4xl max-h-[90vh]">
-                                 {/* Remote video (main) - only for video calls */}
-            {(incomingCallData?.callType === "video" || currentCall?.callType === "video") && (
+            {/* Remote video (main) */}
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover rounded-lg"
+              muted={false}
+              onLoadedMetadata={() => {
+                if (remoteVideoRef.current) {
+                  remoteVideoRef.current.volume = 1.0;
+                  console.log("Video element audio set up");
+                }
+              }}
+            />
+          
+            {/* Local video (picture-in-picture) */}
+            <div className="absolute top-4 right-4 w-48 h-36">
               <video
-                ref={remoteVideoRef}
+                ref={localVideoRef}
                 autoPlay
                 playsInline
-                className="w-full h-full object-cover rounded-lg"
-                muted={false}
-                onLoadedMetadata={() => {
-                  if (remoteVideoRef.current) {
-                    remoteVideoRef.current.volume = 1.0;
-                    console.log("Video element audio set up");
-                  }
-                }}
+                className="w-full h-full object-cover rounded-lg border-2 border-white"
+                muted={true}
               />
-            )}
-           
-                       {/* Voice call interface - only for voice calls */}
-            {(incomingCallData?.callType === "voice" || currentCall?.callType === "voice") && (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-32 h-32 bg-primary rounded-full flex items-center justify-center mx-auto mb-8">
-                    <Phone className="w-16 h-16 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2">Voice Call</h2>
-                  <p className="text-lg text-base-content/70">Audio Only</p>
-                  
-                                     {/* Hidden audio element for voice calls */}
-                   {remoteStream && (
-                     <audio
-                       autoPlay
-                       playsInline
-                       ref={audioRef}
-                       onLoadedMetadata={() => {
-                         if (audioRef.current && remoteStream) {
-                           audioRef.current.srcObject = remoteStream;
-                           audioRef.current.volume = 1.0;
-                           audioRef.current.muted = false;
-                           console.log("Audio element set up for voice call");
-                           
-                           // Test audio
-                           audioRef.current.play().then(() => {
-                             console.log("Audio playing successfully");
-                           }).catch(error => {
-                             console.error("Audio play failed:", error);
-                           });
-                         }
-                       }}
-                     />
-                   )}
-                </div>
-              </div>
-            )}
-          
-                     {/* Local video (picture-in-picture) - only for video calls */}
-           {(incomingCallData?.callType === "video" || currentCall?.callType === "video") && (
-             <div className="absolute top-4 right-4 w-48 h-36">
-               <video
-                 ref={localVideoRef}
-                 autoPlay
-                 playsInline
-                 className="w-full h-full object-cover rounded-lg border-2 border-white"
-                 muted={true}
-               />
-             </div>
-           )}
+            </div>
 
           {/* Call status overlay */}
                      {callStatus === "ringing" && (
@@ -359,18 +318,16 @@ const VideoCallModal = () => {
              </div>
            )}
 
-                      {/* Call controls */}
-           <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-             <div className="flex gap-4">
-               {/* Toggle video - only for video calls */}
-               {(incomingCallData?.callType === "video" || currentCall?.callType === "video") && (
-                 <button
-                   onClick={toggleVideo}
-                   className={`btn btn-circle ${isVideoEnabled ? 'btn-primary' : 'btn-error'}`}
-                 >
-                   {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-                 </button>
-               )}
+          {/* Call controls */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+            <div className="flex gap-4">
+              {/* Toggle video */}
+              <button
+                onClick={toggleVideo}
+                className={`btn btn-circle ${isVideoEnabled ? 'btn-primary' : 'btn-error'}`}
+              >
+                {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </button>
 
               {/* Toggle audio */}
               <button
@@ -380,15 +337,13 @@ const VideoCallModal = () => {
                 {isAudioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
               </button>
 
-                             {/* Screen share - only for video calls */}
-               {(incomingCallData?.callType === "video" || currentCall?.callType === "video") && (
-                 <button
-                   onClick={toggleScreenShare}
-                   className={`btn btn-circle ${isScreenSharing ? 'btn-success' : 'btn-primary'}`}
-                 >
-                   <Monitor className="w-5 h-5" />
-                 </button>
-               )}
+              {/* Screen share */}
+              <button
+                onClick={toggleScreenShare}
+                className={`btn btn-circle ${isScreenSharing ? 'btn-success' : 'btn-primary'}`}
+              >
+                <Monitor className="w-5 h-5" />
+              </button>
 
               {/* End call */}
               <button

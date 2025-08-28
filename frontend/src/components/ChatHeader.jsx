@@ -13,12 +13,6 @@ const ChatHeader = () => {
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
 
-  const handleVoiceCall = () => {
-    if (selectedUser) {
-      initiateCall(selectedUser._id, "voice");
-    }
-  };
-
   const handleVideoCall = () => {
     if (selectedUser) {
       initiateCall(selectedUser._id, "video");
@@ -79,23 +73,12 @@ const ChatHeader = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Voice call button - only for direct messages */}
-          {selectedUser && (
-            <button
-              onClick={handleVoiceCall}
-              className="btn btn-ghost btn-sm btn-circle"
-              title="Voice Call (Audio Only)"
-            >
-              <Phone className="w-5 h-5" />
-            </button>
-          )}
-
           {/* Video call button - only for direct messages */}
           {selectedUser && (
             <button
               onClick={handleVideoCall}
               className="btn btn-ghost btn-sm btn-circle"
-              title="Video Call (Audio + Video)"
+              title="Video Call"
             >
               <Video className="w-5 h-5" />
             </button>
