@@ -1,0 +1,5 @@
+# Fix for CSS MIME type issue
+/assets/* /index.html 200
+
+# Handle client-side routing
+/* /index.html 200

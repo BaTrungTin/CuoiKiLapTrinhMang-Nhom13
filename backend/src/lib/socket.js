@@ -9,7 +9,8 @@ const server = http.createServer(app);
 // CORS configuration for both development and production
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://your-domain.com", // Thay thế bằng domain thực tế
+  "https://cuoikilaptrinhmang.onrender.com", // Domain thực tế của bạn
+  "https://chat-ting-ting-app.onrender.com", // Nếu có domain khác
   process.env.FRONTEND_URL // Nếu có environment variable
 ].filter(Boolean);
 
@@ -19,9 +20,14 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
+      // Log for debugging
+      console.log("CORS check for origin:", origin);
+      console.log("Allowed origins:", allowedOrigins);
+      
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
+        console.log("CORS blocked origin:", origin);
         callback(new Error('Not allowed by CORS'));
       }
     },
