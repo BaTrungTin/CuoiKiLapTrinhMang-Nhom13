@@ -6,5 +6,5 @@ Components
 ko can tao folder cung dc
 nay met qua ko quay video
 
-Anh Thi :Nochatselect
-Trinh : sidebar 
+Anh Thi :Navbar
+Trinh : 
