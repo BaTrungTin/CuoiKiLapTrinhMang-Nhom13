@@ -7,4 +7,4 @@ ko can tao folder cung dc
 nay met qua ko quay video
 
 Anh Thi :Navbar
-Trinh : 
+Trinh : ultis folder
