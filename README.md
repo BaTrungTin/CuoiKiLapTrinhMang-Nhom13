@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 💬 Ứng Dụng Chat Ting Ting
 
 Ứng dụng chat thời gian thực được xây dựng bằng React và Node.js, với tính năng nhắn tin nhóm, xác thực người dùng và giao diện hiện đại.
